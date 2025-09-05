@@ -110,7 +110,7 @@ jobs:
           args: >
             -Dsonar.projectKey=MyApplication
             -Dsonar.host.url=http://localhost:9000
-            -Dsonar.login=${{ sqa_ffc9cd9efc23c330611e80040735c6a565f5e9ad }}
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       # 5. Déploiement avec ArgoCD (exemple : push manifest)
       - name: Deploy with ArgoCD

@@ -1,16 +1,7 @@
-import { Revenue } from './definitions';
+import { APICall, DailyApiCalls, ApiCallStatuses, MostUsedApi, LeastUsedApi, APICallSummary } from './definitions';
 
-export const formatCurrency = (amount: number) => {
-  return (amount / 100).toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  });
-};
-
-export const formatDateToLocal = (
-  dateStr: string,
-  locale: string = 'en-US',
-) => {
+// Format date to local string
+export const formatDateToLocal = (dateStr: string, locale: string = 'en-US') => {
   const date = new Date(dateStr);
   const options: Intl.DateTimeFormatOptions = {
     day: 'numeric',
@@ -21,42 +12,40 @@ export const formatDateToLocal = (
   return formatter.format(date);
 };
 
-export const generateYAxis = (revenue: Revenue[]) => {
-  // Calculate what labels we need to display on the y-axis
-  // based on highest record and in 1000s
-  const yAxisLabels = [];
-  const highestRecord = Math.max(...revenue.map((month) => month.revenue));
-  const topLabel = Math.ceil(highestRecord / 1000) * 1000;
+// Generate Y-axis labels for charts
+export const generateYAxis = (data: { value: number }[] = []) => {
+  const yAxisLabels: string[] = [];
 
-  for (let i = topLabel; i >= 0; i -= 1000) {
-    yAxisLabels.push(`$${i / 1000}K`);
+  // Ensure data is an array and not empty
+  if (Array.isArray(data) && data.length > 0) {
+    const highestRecord = Math.max(...data.map(item => item.value));
+    const topLabel = Math.ceil(highestRecord / 1000) * 1000;
+
+    for (let i = topLabel; i >= 0; i -= 1000) {
+      yAxisLabels.push(`$${i / 1000}K`);
+    }
+  } else {
+    // Handle cases where data is empty or not an array
+    yAxisLabels.push('$0K');
   }
 
-  return { yAxisLabels, topLabel };
+  return { yAxisLabels, topLabel: yAxisLabels.length ? parseInt(yAxisLabels[0].replace('$', '').replace('K', '')) * 1000 : 0 };
 };
 
+// Generate pagination numbers
 export const generatePagination = (currentPage: number, totalPages: number) => {
-  // If the total number of pages is 7 or less,
-  // display all pages without any ellipsis.
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
 
-  // If the current page is among the first 3 pages,
-  // show the first 3, an ellipsis, and the last 2 pages.
   if (currentPage <= 3) {
     return [1, 2, 3, '...', totalPages - 1, totalPages];
   }
 
-  // If the current page is among the last 3 pages,
-  // show the first 2, an ellipsis, and the last 3 pages.
   if (currentPage >= totalPages - 2) {
     return [1, 2, '...', totalPages - 2, totalPages - 1, totalPages];
   }
 
-  // If the current page is somewhere in the middle,
-  // show the first page, an ellipsis, the current page and its neighbors,
-  // another ellipsis, and the last page.
   return [
     1,
     '...',
@@ -66,4 +55,90 @@ export const generatePagination = (currentPage: number, totalPages: number) => {
     '...',
     totalPages,
   ];
+};
+
+// Calculate daily API calls
+export const calculateDailyApiCalls = (apiCalls: APICall[]): DailyApiCalls => {
+  const dailyCalls: DailyApiCalls = {};
+
+  apiCalls.forEach(call => {
+    const date = new Date(call.created_at).toISOString().split('T')[0];
+    if (dailyCalls[date]) {
+      dailyCalls[date]++;
+    } else {
+      dailyCalls[date] = 1;
+    }
+  });
+
+  return dailyCalls;
+};
+
+// Calculate API call statuses
+export const calculateApiCallStatuses = (apiCalls: APICall[]): ApiCallStatuses => {
+  const statuses: ApiCallStatuses = { success: 0, failure: 0 };
+
+  apiCalls.forEach(call => {
+    if (call.status === 'success') {
+      statuses.success++;
+    } else if (call.status === 'failure') {
+      statuses.failure++;
+    }
+  });
+
+  return statuses;
+};
+
+// Calculate most used APIs
+export const calculateMostUsedApis = (apiCalls: APICall[]): MostUsedApi[] => {
+  const apiUsage: { [key: string]: number } = {};
+
+  apiCalls.forEach(call => {
+    if (apiUsage[call.api_name]) {
+      apiUsage[call.api_name]++;
+    } else {
+      apiUsage[call.api_name] = 1;
+    }
+  });
+
+  return Object.entries(apiUsage).map(([api_name, callCount]) => ({
+    api_name,
+    callCount
+  })).sort((a, b) => b.callCount - a.callCount);
+};
+
+// Calculate least used APIs
+export const calculateLeastUsedApis = (apiCalls: APICall[]): LeastUsedApi[] => {
+  const apiUsage: { [key: string]: number } = {};
+
+  apiCalls.forEach(call => {
+    if (apiUsage[call.api_name]) {
+      apiUsage[call.api_name]++;
+    } else {
+      apiUsage[call.api_name] = 1;
+    }
+  });
+
+  return Object.entries(apiUsage).map(([api_name, callCount]) => ({
+    api_name,
+    callCount
+  })).sort((a, b) => a.callCount - b.callCount);
+};
+
+// Calculate API call summary for a specific date
+export const calculateApiCallSummary = (apiCalls: APICall[], date: string): APICallSummary => {
+  const filteredCalls = apiCalls.filter(call => {
+    const callDate = new Date(call.created_at).toISOString().split('T')[0];
+    return callDate === date;
+  });
+
+  const totalCalls = filteredCalls.length;
+  const successCalls = filteredCalls.filter(call => call.status === 'success').length;
+  const failureCalls = filteredCalls.filter(call => call.status === 'failure').length;
+
+  return {
+    date,
+    totalCalls,
+    successCalls,
+    failureCalls
+  };
 };

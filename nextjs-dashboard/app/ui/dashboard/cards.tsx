@@ -1,31 +1,37 @@
 import {
-  BanknotesIcon,
-  ClockIcon,
-  UserGroupIcon,
-  InboxIcon,
+  PhoneIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  StarIcon,
+  ArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import { lusitana } from '@/app/ui/fonts';
+import { fetchCardData } from '@/app/lib/data'; 
 
 const iconMap = {
-  collected: BanknotesIcon,
-  customers: UserGroupIcon,
-  pending: ClockIcon,
-  invoices: InboxIcon,
+  totalCalls: PhoneIcon,
+  successCalls: CheckCircleIcon,
+  failureCalls: XCircleIcon,
+  mostUsedApi: StarIcon,
+  leastUsedApi: ArrowDownIcon,
 };
 
-export default async function CardWrapper() {
+export default async function ApiCallsCards() {
+  const {
+    dailyApiCalls,
+    successes,
+    failures,
+    mostUsedApis,
+    leastUsedApis,
+  } = await fetchCardData();
+
   return (
     <>
-      {/* NOTE: Uncomment this code in Chapter 9 */}
-
-      {/* <Card title="Collected" value={totalPaidInvoices} type="collected" />
-      <Card title="Pending" value={totalPendingInvoices} type="pending" />
-      <Card title="Total Invoices" value={numberOfInvoices} type="invoices" />
-      <Card
-        title="Total Customers"
-        value={numberOfCustomers}
-        type="customers"
-      /> */}
+      <Card title="Total API Calls" value={dailyApiCalls} type="totalCalls" />
+      <Card title="Successful Calls" value={successes} type="successCalls" />
+      <Card title="Failed Calls" value={failures} type="failureCalls" />
+      <Card title="Most Used API" value={mostUsedApis} type="mostUsedApi" />
+      <Card title="Least Used API" value={mostUsedApis} type="leastUsedApi" />
     </>
   );
 }
@@ -37,7 +43,7 @@ export function Card({
 }: {
   title: string;
   value: number | string;
-  type: 'invoices' | 'customers' | 'pending' | 'collected';
+  type: 'totalCalls' | 'successCalls' | 'failureCalls' | 'mostUsedApi' | 'leastUsedApi';
 }) {
   const Icon = iconMap[type];
 

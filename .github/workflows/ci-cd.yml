@@ -1,0 +1,120 @@
+name: CI-CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    services:
+      # Base de données PostgreSQL (si besoin pour tests backend)
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: zaineb
+          POSTGRES_PASSWORD: ubuntu07
+          POSTGRES_DB: dashbase
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # RabbitMQ
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 15672:15672
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Vault
+      vault:
+        image: vault:latest
+        ports:
+          - 8200:8200
+        options: >-
+          --cap-add=IPC_LOCK
+
+      # Keycloak
+      keycloak:
+        image: quay.io/keycloak/keycloak:23.0
+        ports:
+          - 8084:8443
+        env:
+          KEYCLOAK_ADMIN: admin
+          KEYCLOAK_ADMIN_PASSWORD: ubuntu07
+        options: >-
+          --health-cmd "curl -f http://localhost:8084/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      # SonarQube
+      sonarqube:
+        image: sonarqube:community
+        ports:
+          - 8081:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+      # ArgoCD
+      argocd:
+        image: argoproj/argocd
+        ports:
+          - 8080:443
+        options: >-
+          --health-cmd "curl -k -f https://localhost:8080/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      # 1. Récupérer le code du repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Installer Python + dépendances (Flask backend)
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 3. Lancer les tests unitaires
+      - name: Run tests
+        run: |
+          pytest --maxfail=1 --disable-warnings -q
+
+      # 4. Analyse de code avec SonarQube (scanner)
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2.0
+        with:
+          args: >
+            -Dsonar.projectKey=MyApplication
+            -Dsonar.host.url=http://localhost:9000
+            -Dsonar.login=${{ sqa_ffc9cd9efc23c330611e80040735c6a565f5e9ad }}
+
+      # 5. Déploiement avec ArgoCD (exemple : push manifest)
+      - name: Deploy with ArgoCD
+        run: |
+          echo "Déploiement déclenché via ArgoCD"
+          # Ici tu peux mettre kubectl ou argocd CLI
+
